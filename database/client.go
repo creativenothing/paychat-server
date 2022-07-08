@@ -22,5 +22,7 @@ func Connect(connectionString string) {
 }
 func Migrate() {
 	Instance.AutoMigrate(&models.User{})
+	//testUser := models.User{Username: "admin", Password: "admin"}
+	//Instance.Create(&testUser)
 	log.Println("Database Migration Completed!")
 }

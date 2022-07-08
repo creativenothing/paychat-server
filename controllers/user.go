@@ -4,10 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/creativenothing/paychat-server/database"
 	"github.com/creativenothing/paychat-server/models"
+	"github.com/gorilla/mux"
 )
+
+var db = database.Instance
+
+func readJSON(r *http.Request) {
+
+}
 
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var u models.User
@@ -23,9 +31,10 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	record := database.Instance.Create(&u)
-	if record.Error != nil {
-		http.Error(w, record.Error.Error(), http.StatusInternalServerError)
+	result := database.Instance.Create(&u)
+
+	if result.Error != nil {
+		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -34,6 +43,25 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]interface{}{"username": u.Username, "id": u.ID}
 	json.NewEncoder(w).Encode(resp)
 
+}
+
+func GetUser(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, _ := strconv.Atoi(vars["id"])
+
+	u := models.User{ID: id}
+
+	result := database.Instance.First(&u)
+
+	if result.Error != nil {
+		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	w.Header().Set("Content-Type", "application/json")
+
+	fmt.Printf("%+v\n", u)
+	json.NewEncoder(w).Encode(&u)
 }
 
 func GetAllUsers(w http.ResponseWriter, r *http.Request) {
