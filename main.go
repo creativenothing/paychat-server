@@ -19,7 +19,7 @@ func main() {
 
 	r.SetupRouter()
 
-	ws.Run()
+	ws.Instance.Run()
 
 	err := http.ListenAndServe(addr, r.Router)
 

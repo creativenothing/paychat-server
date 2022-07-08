@@ -25,7 +25,7 @@ func newHub() *Hub {
 	}
 }
 
-var Instance *Hub
+var Instance *Hub = newHub()
 
 func (h *Hub) Run() {
 	for {
