@@ -14,6 +14,12 @@ type Hub struct {
 
 	// Unregister requests from clients.
 	unregister chan *Client
+
+	//
+	namespace string
+
+	//
+	room string
 }
 
 func newHub() *Hub {
@@ -36,6 +42,11 @@ func (h *Hub) Run() {
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.send)
+
+				// Remove empty hubs from namespace where applicable
+				if h.namespace != nil&len(h.clients) == 0 {
+					removeHub(h.namespace, h.room)
+				}
 			}
 		case message := <-h.broadcast:
 			for client := range h.clients {
@@ -47,5 +58,34 @@ func (h *Hub) Run() {
 				}
 			}
 		}
+	}
+}
+
+// Structure to store namespace
+var hubs = map[string]map[string]*Hub{}
+
+// Returns hub from namespace. Client should be registered to hub immediately.
+func GetHub(namespace string, room string) *Hub {
+	if _, ok := hubs[namespace]; !ok {
+		hubs[namespace] = map[string]*Hub{}
+	}
+	namespaceHubs := hubs[namespace]
+
+	if _, ok := namespaceHubs[room]; !ok {
+		hub = &NewHub()
+		hub.namespace = namespace
+		hub.room = room
+
+		namespaceHubs[room] = &hub
+	}
+	return namespaceHubs[room]
+}
+
+// Unexported method to remove hub from namespace table
+func removeHub(namespace string, room string) {
+	delete(hubs[namespace], room)
+
+	if len(hubs[namespace]) == 0 {
+		delete(hubs[namespace])
 	}
 }
