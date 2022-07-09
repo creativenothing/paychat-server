@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/creativenothing/paychat-server/controllers"
+	"github.com/creativenothing/paychat-server/sessions"
 	"github.com/gorilla/mux"
 )
 
@@ -33,6 +34,13 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func auth(w http.ResponseWriter, r *http.Request) {
+	usersession := sessions.GetUserSession(w, r)
+
+	if !usersession.CheckAuth() {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 
@@ -40,20 +48,41 @@ func auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
+	// Retrieve parameters from http body
+	message := map[string]interface{}{}
+	json.Unmarshall(r.body, &message)
+	username, userok := message["username"].(string)
+	password, passok := message["password"].(string)
+
+	// Malformed request if fields do not exist
+	if !passok || !userok {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// Try to authenticate and report failure
+	authenticated := sessions.AuthenticateSession(w, r, username, password)
+	if !authenticated {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	usersession := GetUserSession(w, r)
+
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 
 	user["id"] = 1
-	json.NewEncoder(w).Encode(user)
+	json.NewEncoder(w).Encode(usersession.UserResponse())
 
 }
 func logout(w http.ResponseWriter, r *http.Request) {
+	sessions.UnauthenticateUserSession(w, r)
+
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 
 	user["id"] = nil
 	json.NewEncoder(w).Encode(user)
-
 }
 
 func SetupRouter() {

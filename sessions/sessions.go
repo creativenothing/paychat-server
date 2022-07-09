@@ -9,6 +9,10 @@ import (
 	"github.com/gorilla/sessions"
 )
 
+const (
+	cookieName = "paychat-cookie"
+)
+
 // Cookie store to get cookie from user
 var store = sessions.NewCookieStore([]byte("super-secret-key"))
 
@@ -39,6 +43,18 @@ func (us *UserSession) Remove() {
 
 	if _, ok := userSessions_userID[us.UserID]; ok {
 		delete(userSessions_userID, us.UserID)
+	}
+}
+
+// For returning user information
+type UserResponse struct {
+	ID int `json:"id"`
+}
+
+func (us *UserSession) UserResponse() UserResponse {
+	// Todo: retrieve username from database
+	return UserResponse{
+		ID: us.userID,
 	}
 }
 
@@ -97,9 +113,9 @@ func (us UserSession) AdvisorSetStatus(status Status) {
 
 // Access session from cookie store. Return nil if not
 func ReadUserSession(w http.ResponseWriter, r *http.Request) *UserSession {
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, cookieName)
 
-	// Assign session id if new session
+	// No session if session_id
 	if _, valid := session.Values["session_id"]; !valid {
 		return nil
 	}
@@ -132,7 +148,7 @@ func ReadUserSession(w http.ResponseWriter, r *http.Request) *UserSession {
 
 // Access session from cookie store. Create if not available
 func GetUserSession(w http.ResponseWriter, r *http.Request) *UserSession {
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, cookieName)
 
 	// Assign session id if new session
 	if _, valid := session.Values["session_id"]; !valid {
@@ -146,21 +162,26 @@ func GetUserSession(w http.ResponseWriter, r *http.Request) *UserSession {
 
 // Log a session in from net
 func AuthenticateUserSession(w http.ResponseWriter, r *http.Request, username string, password string) bool {
-	// hit up database, hash pass etc
+	session, _ := store.Get(r, cookieName)
+
+	// hit up database
 	user := models.User{
 		Username: username,
 	}
-
 	result = db.Instance.First(&user)
 	if result.Error() {
 		return false
 	}
 
+	// Check password
 	if err := user.checkPassword(password); err != nil {
 		return false
 	}
 
 	userID := user.ID
+
+	session.Values["user_id"] = userID
+	session.Save()
 
 	if _, valid := userSessions_userID[userID]; !valid {
 		userSessions_userID[userID] = GetUserSession(w, r)
@@ -170,8 +191,8 @@ func AuthenticateUserSession(w http.ResponseWriter, r *http.Request, username st
 }
 
 // For logging a user out
-func UnAuthenticateUserSession(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session-name")
+func UnauthenticateUserSession(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, cookieName)
 
 	// Remove UserID to invalidate it. Remove stored session as well.
 	if _, valid := session.Values["user_id"]; valid {
@@ -179,5 +200,7 @@ func UnAuthenticateUserSession(w http.ResponseWriter, r *http.Request) {
 
 		delete(session.Values, "user_id")
 		GetUserSessionByID(userID).Remove()
+
+		session.Save()
 	}
 }
