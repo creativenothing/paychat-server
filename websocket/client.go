@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/creativenothing/paychat-server/sessions"
 	"github.com/gorilla/websocket"
 )
 
@@ -42,7 +43,15 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	// handler function
+	handler ClientHandler
+
+	// Related Session Object
+	userSession UserSession
 }
+
+type ClientHandler func(c *Client, message []byte)
 
 // readPump pumps messages from the websocket connection to the hub.
 //
@@ -65,8 +74,8 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.hub.broadcast <- message
+
+		c.handler(c, message)
 	}
 }
 
@@ -116,18 +125,37 @@ func (c *Client) writePump() {
 	}
 }
 
+// Default client behavior
+var forwardClientHandler ClientHandler = func(c *Client, message []byte) {
+	message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+	c.hub.broadcast <- message
+}
+
 // serveWs handles websocket requests from the peer.
-func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+func serveWsWithHandler(hub *Hub, w http.ResponseWriter, r *http.Request, h ClientHandler) {
+	userSession := sessions.ReadUserSession(w, r)
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client := &Client{
+		hub:         hub,
+		conn:        conn,
+		send:        make(chan []byte, 256),
+		handler:     h,
+		userSession: userSession,
+	}
 	client.hub.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
+}
+
+// Default functionality preserved
+func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+	serveWsWithHandler(hub, w, r, forwardClientHandler)
 }
