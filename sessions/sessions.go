@@ -139,12 +139,6 @@ func ReadUserSession(w http.ResponseWriter, r *http.Request) *UserSession {
 		return userSession
 	}
 
-	// Create live object if not available
-	if _, valid := userSessions[sessionID]; !valid {
-		userSessions[sessionID] = &UserSession{
-			SessionID: sessionID,
-		}
-	}
 	userSession := userSessions[sessionID]
 
 	return userSession
@@ -159,6 +153,33 @@ func GetUserSession(w http.ResponseWriter, r *http.Request) *UserSession {
 		session.Values["session_id"] = shortuuid.New()
 
 		session.Save(r, w)
+	}
+	sessionID := session.Values["session_id"].(string)
+
+	// This ensures that user sessions are stored in their
+	// proper maps
+	if userID, valid := session.Values["user_id"].(string); valid {
+		// Create at user index if userid exists
+		if _, valid := userSessions_userID[userID]; !valid {
+			// If there is already a session, use that
+			usersession := ReadUserSession(w, r)
+			if usersession != nil {
+				userSessions_userID[userID] = usersession
+			} else {
+				// Create new session otherwise
+				userSessions_userID[userID] = &UserSession{
+					SessionID: sessionID,
+					UserID:    userID,
+				}
+				userSessions[sessionID] = userSessions_userID[userID]
+			}
+		}
+	} else if _, valid := userSessions[sessionID]; !valid {
+		// If there is no userid and no session in the structure
+		// Create anonymous session
+		userSessions[sessionID] = &UserSession{
+			SessionID: sessionID,
+		}
 	}
 
 	return ReadUserSession(w, r)
@@ -178,21 +199,15 @@ func AuthenticateUserSession(w http.ResponseWriter, r *http.Request, username st
 		return false
 	}
 
-	fmt.Printf("Authenticating User:\n%v\n", user)
-
 	// Check password
 	if err := user.CheckPassword(password); err != nil {
 		return false
 	}
 
-	userID := string(user.ID)
+	userID := fmt.Sprint(user.ID)
 
 	session.Values["user_id"] = userID
 	session.Save(r, w)
-
-	if _, valid := userSessions_userID[userID]; !valid {
-		userSessions_userID[userID] = GetUserSession(w, r)
-	}
 
 	return true
 }
