@@ -12,6 +12,14 @@ import (
 var Instance *gorm.DB
 var dbError error
 
+func createTestUser() models.User {
+
+	var u models.User
+	u.Username = "admin"
+	u.HashPassword("admin")
+	return u
+}
+
 func Connect(connectionString string) {
 	Instance, dbError = gorm.Open(sqlite.Open(connectionString), &gorm.Config{})
 	if dbError != nil {
@@ -22,7 +30,14 @@ func Connect(connectionString string) {
 }
 func Migrate() {
 	Instance.AutoMigrate(&models.User{})
-	//testUser := models.User{Username: "admin", Password: "admin"}
-	//Instance.Create(&testUser)
+	u := createTestUser()
+	Instance.Create(&u)
+
 	log.Println("Database Migration Completed!")
+}
+
+func Purge() {
+	if Instance.Migrator().HasTable(&models.User{}) {
+		Instance.Migrator().DropTable(&models.User{})
+	}
 }

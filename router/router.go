@@ -91,7 +91,7 @@ func SetupRouter() {
 	Router.HandleFunc("/login", login).Methods("POST", "OPTIONS")
 	Router.HandleFunc("/user", controllers.RegisterUser).Methods("POST")
 	Router.HandleFunc("/user/{id}", controllers.GetUser).Methods("GET")
-	Router.HandleFunc("/user", getUsers).Methods("GET")
+	Router.HandleFunc("/user", controllers.GetAllUsers).Methods("GET")
 	Router.HandleFunc("/auth", auth).Methods("GET")
 
 }

@@ -14,6 +14,7 @@ var addr = "localhost:8080"
 func main() {
 
 	db.Connect("test.db")
+	db.Purge()
 	db.Migrate()
 
 	r.SetupRouter()
