@@ -48,7 +48,7 @@ type Client struct {
 	handler ClientHandler
 
 	// Related Session Object
-	userSession UserSession
+	userSession *sessions.UserSession
 }
 
 type ClientHandler func(c *Client, message []byte)

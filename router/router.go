@@ -23,8 +23,6 @@ func cors(h http.Handler) http.Handler {
 	})
 }
 
-var user = map[string]interface{}{"id": 1}
-
 func home(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "index.html")
 }
@@ -44,13 +42,13 @@ func auth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 
-	json.NewEncoder(w).Encode(user)
+	json.NewEncoder(w).Encode(usersession.UserResponse())
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
 	// Retrieve parameters from http body
 	message := map[string]interface{}{}
-	json.Unmarshall(r.body, &message)
+	json.NewDecoder(r.Body).Decode(&message)
 	username, userok := message["username"].(string)
 	password, passok := message["password"].(string)
 
@@ -61,28 +59,28 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Try to authenticate and report failure
-	authenticated := sessions.AuthenticateSession(w, r, username, password)
+	authenticated := sessions.AuthenticateUserSession(w, r, username, password)
+
 	if !authenticated {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	usersession := GetUserSession(w, r)
+	usersession := sessions.GetUserSession(w, r)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 
-	user["id"] = 1
 	json.NewEncoder(w).Encode(usersession.UserResponse())
-
 }
+
 func logout(w http.ResponseWriter, r *http.Request) {
 	sessions.UnauthenticateUserSession(w, r)
+	usersession := sessions.GetUserSession(w, r)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 
-	user["id"] = nil
-	json.NewEncoder(w).Encode(user)
+	json.NewEncoder(w).Encode(usersession.UserResponse())
 }
 
 func SetupRouter() {

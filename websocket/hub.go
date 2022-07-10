@@ -16,10 +16,10 @@ type Hub struct {
 	unregister chan *Client
 
 	//
-	namespace string
+	namespace *string
 
 	//
-	room string
+	room *string
 }
 
 func newHub() *Hub {
@@ -44,8 +44,8 @@ func (h *Hub) Run() {
 				close(client.send)
 
 				// Remove empty hubs from namespace where applicable
-				if h.namespace != nil&len(h.clients) == 0 {
-					removeHub(h.namespace, h.room)
+				if h.namespace != nil && len(h.clients) == 0 {
+					removeHub(*h.namespace, *h.room)
 				}
 			}
 		case message := <-h.broadcast:
@@ -72,11 +72,11 @@ func GetHub(namespace string, room string) *Hub {
 	namespaceHubs := hubs[namespace]
 
 	if _, ok := namespaceHubs[room]; !ok {
-		hub = &NewHub()
-		hub.namespace = namespace
-		hub.room = room
+		hub := newHub()
+		hub.namespace = &namespace
+		hub.room = &room
 
-		namespaceHubs[room] = &hub
+		namespaceHubs[room] = hub
 	}
 	return namespaceHubs[room]
 }
@@ -86,6 +86,6 @@ func removeHub(namespace string, room string) {
 	delete(hubs[namespace], room)
 
 	if len(hubs[namespace]) == 0 {
-		delete(hubs[namespace])
+		delete(hubs, namespace)
 	}
 }
