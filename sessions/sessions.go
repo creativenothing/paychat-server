@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/sessions"
+	"github.com/lithammer/shortuuid/v3"
 )
 
 const (
@@ -38,7 +39,7 @@ type UserSession struct {
 
 func (us *UserSession) Remove() {
 	if _, ok := userSessions[us.SessionID]; ok {
-		delete(userSessions[us.SessionID])
+		delete(userSessions, us.SessionID)
 	}
 
 	if _, ok := userSessions_userID[us.UserID]; ok {
@@ -48,23 +49,23 @@ func (us *UserSession) Remove() {
 
 // For returning user information
 type UserResponse struct {
-	ID int `json:"id"`
+	ID string `json:"id"`
 }
 
 func (us *UserSession) UserResponse() UserResponse {
 	// Todo: retrieve username from database
 	return UserResponse{
-		ID: us.userID,
+		ID: us.UserID,
 	}
 }
 
 // If user session is authenitcated
 func (userSession *UserSession) CheckAuth() bool {
-	return userSession.UserID != nil
+	return userSession.UserID != ""
 }
 
 // Return stored user session or nil
-func GetUserSessionByID(userID string) UserSession {
+func GetUserSessionByID(userID string) *UserSession {
 	if _, valid := userSessions_userID[userID]; !valid {
 		return nil
 	}
@@ -77,11 +78,16 @@ func GetUserSessionByID(userID string) UserSession {
 
 type Status uint64
 
-const AdvisorStatus = struct{}{
-	Offline:  Status(0),
-	Away:     Status(1),
-	Busy:     Status(2),
-	Avaiable: Status(3),
+var AdvisorStatus = struct {
+	Offline   Status
+	Away      Status
+	Busy      Status
+	Available Status
+}{
+	Offline:   Status(0),
+	Away:      Status(1),
+	Busy:      Status(2),
+	Available: Status(3),
 }
 
 func (s Status) String() string {
@@ -121,23 +127,19 @@ func ReadUserSession(w http.ResponseWriter, r *http.Request) *UserSession {
 	}
 	sessionID := session.Values["session_id"].(string)
 
-	// Standardize sessionid, that way there is only one
-	// Session per user
-	if _, valid := sessionID.Values["user_id"]; valid {
-		userID := sessionID.Values["user_id"].(string)
+	// Standardize session by returning usersession
+	// Associated with userid when possible
+	if _, valid := session.Values["user_id"]; valid {
+		userID := session.Values["user_id"].(string)
 
 		userSession := GetUserSessionByID(userID)
-		if userSession != nil; &userSession.SessionID != sessionID {
-			sessionID = userSession.SessionID
-			session.Values["session_id"] = sessionID
 
-			session.Save(r, w)
-		}
+		return userSession
 	}
 
 	// Create live object if not available
-	if _, valid := userSesssions[sessionID]; !valid {
-		userSessions[sessionID] = UserSession{
+	if _, valid := userSessions[sessionID]; !valid {
+		userSessions[sessionID] = &UserSession{
 			SessionID: sessionID,
 		}
 	}
@@ -152,12 +154,12 @@ func GetUserSession(w http.ResponseWriter, r *http.Request) *UserSession {
 
 	// Assign session id if new session
 	if _, valid := session.Values["session_id"]; !valid {
-		session.Values["session_id"] = shortUUID.New()
+		session.Values["session_id"] = shortuuid.New()
 
 		session.Save(r, w)
 	}
 
-	return ReadUserSession(r, w)
+	return ReadUserSession(w, r)
 }
 
 // Log a session in from net
@@ -168,20 +170,20 @@ func AuthenticateUserSession(w http.ResponseWriter, r *http.Request, username st
 	user := models.User{
 		Username: username,
 	}
-	result = db.Instance.First(&user)
-	if result.Error() {
+	result := db.Instance.First(&user)
+	if result.Error != nil {
 		return false
 	}
 
 	// Check password
-	if err := user.checkPassword(password); err != nil {
+	if err := user.CheckPassword(password); err != nil {
 		return false
 	}
 
-	userID := user.ID
+	userID := string(user.ID)
 
 	session.Values["user_id"] = userID
-	session.Save()
+	session.Save(r, w)
 
 	if _, valid := userSessions_userID[userID]; !valid {
 		userSessions_userID[userID] = GetUserSession(w, r)
@@ -199,8 +201,8 @@ func UnauthenticateUserSession(w http.ResponseWriter, r *http.Request) {
 		userID := session.Values["user_id"].(string)
 
 		delete(session.Values, "user_id")
-		GetUserSessionByID(userID).Remove()
+		session.Save(r, w)
 
-		session.Save()
+		GetUserSessionByID(userID).Remove()
 	}
 }
