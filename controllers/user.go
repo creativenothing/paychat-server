@@ -6,12 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/creativenothing/paychat-server/database"
+	db "github.com/creativenothing/paychat-server/database"
 	"github.com/creativenothing/paychat-server/models"
 	"github.com/gorilla/mux"
 )
-
-var db = database.Instance
 
 func readJSON(r *http.Request) {
 
@@ -31,7 +29,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	result := database.Instance.Create(&u)
+	result := db.Instance.Create(&u)
 
 	if result.Error != nil {
 		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
@@ -51,7 +49,7 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 
 	u := models.User{ID: id}
 
-	result := database.Instance.First(&u)
+	result := db.Instance.First(&u)
 
 	if result.Error != nil {
 		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
@@ -67,7 +65,7 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	var users []models.User
 
-	database.Instance.Find(&users)
+	db.Instance.Find(&users)
 
 	resp, err := json.Marshal(users)
 	if err != nil {
