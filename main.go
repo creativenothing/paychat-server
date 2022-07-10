@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -10,7 +9,7 @@ import (
 	ws "github.com/creativenothing/paychat-server/websocket"
 )
 
-var addr = "http://localhost:8080"
+var addr = "localhost:8080"
 
 func main() {
 
@@ -19,12 +18,11 @@ func main() {
 
 	r.SetupRouter()
 
-	ws.Instance.Run()
+	go ws.Instance.Run()
 
 	err := http.ListenAndServe(addr, r.Router)
-
 	if err != nil {
 		log.Fatal("HTTP Server Error: ", err)
 	}
-	fmt.Printf("Server running on port %s!\n", addr)
+	log.Printf("Server running on port %s!\n", addr)
 }
