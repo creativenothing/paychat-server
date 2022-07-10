@@ -2,6 +2,7 @@ package sessions
 
 import (
 	"fmt"
+	"strconv"
 
 	db "github.com/creativenothing/paychat-server/database"
 	"github.com/creativenothing/paychat-server/models"
@@ -51,14 +52,25 @@ func (us *UserSession) Remove() {
 
 // For returning user information
 type UserResponse struct {
-	ID string `json:"id"`
+	ID       string `json:"id"`
+	Username string `json:"username"`
 }
 
 func (us *UserSession) UserResponse() UserResponse {
 	// Todo: retrieve username from database
-	return UserResponse{
-		ID: us.UserID,
+	if us.UserID == "" {
+		return UserResponse{}
 	}
+
+	userIDInt, _ := strconv.Atoi(us.UserID)
+	user := models.User{ID: userIDInt}
+	db.Instance.Where(&user).First(&user)
+
+	return UserResponse{
+		ID:       us.UserID,
+		Username: user.Username,
+	}
+
 }
 
 // If user session is authenitcated
