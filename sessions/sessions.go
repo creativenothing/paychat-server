@@ -1,6 +1,8 @@
 package sessions
 
 import (
+	"fmt"
+
 	db "github.com/creativenothing/paychat-server/database"
 	"github.com/creativenothing/paychat-server/models"
 
@@ -170,10 +172,13 @@ func AuthenticateUserSession(w http.ResponseWriter, r *http.Request, username st
 	user := models.User{
 		Username: username,
 	}
+
 	result := db.Instance.First(&user)
 	if result.Error != nil {
 		return false
 	}
+
+	fmt.Printf("Authenticating User:\n%v\n", user)
 
 	// Check password
 	if err := user.CheckPassword(password); err != nil {

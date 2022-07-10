@@ -2,6 +2,7 @@ package router
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/creativenothing/paychat-server/controllers"
@@ -46,11 +47,18 @@ func auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	// Retrieve parameters from http body
 	message := map[string]interface{}{}
 	json.NewDecoder(r.Body).Decode(&message)
 	username, userok := message["username"].(string)
 	password, passok := message["password"].(string)
+
+	fmt.Printf("LOGIN:\n%v\n", message)
 
 	// Malformed request if fields do not exist
 	if !passok || !userok {
