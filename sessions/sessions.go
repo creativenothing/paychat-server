@@ -194,7 +194,7 @@ func AuthenticateUserSession(w http.ResponseWriter, r *http.Request, username st
 		Username: username,
 	}
 
-	result := db.Instance.First(&user)
+	result := db.Instance.Where(&user).First(&user)
 	if result.Error != nil {
 		return false
 	}
