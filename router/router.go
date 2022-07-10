@@ -12,6 +12,11 @@ import (
 
 var Router *mux.Router
 
+func preflight(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
 func cors(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
@@ -47,11 +52,6 @@ func auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	// Retrieve parameters from http body
 	message := map[string]interface{}{}
 	json.NewDecoder(r.Body).Decode(&message)
@@ -73,6 +73,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
+
 	usersession := sessions.GetUserSession(w, r)
 
 	w.WriteHeader(http.StatusOK)
@@ -94,10 +95,13 @@ func logout(w http.ResponseWriter, r *http.Request) {
 func SetupRouter() {
 	Router = mux.NewRouter()
 	Router.Use(cors)
+
+	Router.HandleFunc("/", preflight).Methods("OPTIONS")
 	Router.HandleFunc("/", home)
+
 	Router.HandleFunc("/logout", logout).Methods("GET")
-	Router.HandleFunc("/login", login).Methods("POST", "OPTIONS")
-	Router.HandleFunc("/user", controllers.RegisterUser).Methods("POST")
+	Router.HandleFunc("/login", login).Methods("POST")
+	Router.HandleFunc("/signup", controllers.RegisterUser).Methods("POST")
 	Router.HandleFunc("/user/{id}", controllers.GetUser).Methods("GET")
 	Router.HandleFunc("/user", controllers.GetAllUsers).Methods("GET")
 	Router.HandleFunc("/auth", auth).Methods("GET")
