@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/creativenothing/paychat-server/sessions"
 	"github.com/gorilla/websocket"
 )
 
@@ -47,9 +46,6 @@ type Client struct {
 
 	// handler function
 	handler ClientHandler
-
-	// Related Session Object
-	userSession *sessions.UserSession
 }
 
 func (c *Client) Hub() *Hub {
@@ -75,6 +71,7 @@ func (c *Client) readPump() {
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
@@ -142,19 +139,16 @@ var forwardClientHandler ClientHandler = func(c *Client, message []byte) {
 
 // serveWs handles websocket requests from the peer.
 func ServeWsWithHandler(hub *Hub, w http.ResponseWriter, r *http.Request, h ClientHandler) {
-	userSession := sessions.ReadUserSession(w, r)
-
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	client := &Client{
-		hub:         hub,
-		conn:        conn,
-		send:        make(chan []byte, 256),
-		handler:     h,
-		userSession: userSession,
+		hub:     hub,
+		conn:    conn,
+		send:    make(chan []byte, 256),
+		handler: h,
 	}
 	client.hub.register <- client
 
