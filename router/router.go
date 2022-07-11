@@ -98,11 +98,27 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(usersession.UserResponse())
 }
 
+func token(w http.ResponseWriter, r *http.Request) {
+	usersession := sessions.GetUserSession(w, r)
+	if !usersession.CheckAuth() {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"type":  "token",
+		"token": usersession.GetJWT(),
+	})
+
+	//fmt.Println(sessions.GetUserSessionByJWT(usersession.GetJWT()))
+}
+
 func wsChatroom(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	usersession := sessions.GetUserSession(w, r)
+	// Nil user session to be populated by jwt confirmation
+	var usersession *sessions.UserSession
 
 	fmt.Printf("Chat session with %v and %v\n", vars, usersession)
 
@@ -118,7 +134,20 @@ func wsChatroom(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		switch messageJSON["type"].(string) {
+		case "token":
+			if _, ok := messageJSON["token"].(string); !ok {
+				return
+			}
+			token := messageJSON["token"].(string)
+
+			usersession = sessions.GetUserSessionByJWT(token)
+
 		case "chat":
+			// Authenticate user
+			if !usersession.CheckAuth() {
+				return
+			}
+
 			// Ensure well formed
 			if _, ok := messageJSON["text"].(string); !ok {
 				return
@@ -136,6 +165,7 @@ func wsChatroom(w http.ResponseWriter, r *http.Request) {
 
 			c.Broadcast([]byte(send))
 			break
+
 		}
 
 	}
@@ -156,6 +186,7 @@ func SetupRouter() {
 	Router.HandleFunc("/user", controllers.GetAllUsers).Methods("GET")
 	Router.HandleFunc("/chat/ws", wsChatroom).Methods("GET")
 	Router.HandleFunc("/auth", auth).Methods("GET")
+	Router.HandleFunc("/token", token).Methods("GET")
 
 	Router.HandleFunc("/", home)
 }
