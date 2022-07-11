@@ -30,3 +30,14 @@ func (u *User) CheckPassword(providedPassword string) error {
 	}
 	return nil
 }
+
+// * * * *
+// DBChatMessage
+
+type ChatMessage struct {
+	gorm.Model
+	ID     uint64
+	UserID string
+	Type   string
+	Text   string
+}

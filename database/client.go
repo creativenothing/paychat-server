@@ -30,6 +30,8 @@ func Connect(connectionString string) {
 }
 func Migrate() {
 	Instance.AutoMigrate(&models.User{})
+	Instance.AutoMigrate(&models.ChatMessage{})
+
 	u := createTestUser()
 	Instance.Create(&u)
 
