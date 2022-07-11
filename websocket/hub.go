@@ -76,6 +76,8 @@ func GetHub(namespace string, room string) *Hub {
 		hub.namespace = &namespace
 		hub.room = &room
 
+		go hub.Run()
+
 		namespaceHubs[room] = hub
 	}
 	return namespaceHubs[room]
