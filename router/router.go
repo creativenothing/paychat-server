@@ -41,6 +41,8 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 func auth(w http.ResponseWriter, r *http.Request) {
 	usersession := sessions.GetUserSession(w, r)
 
+	fmt.Printf("AUTH %v\n", usersession)
+
 	if !usersession.CheckAuth() {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -76,6 +78,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	usersession := sessions.GetUserSession(w, r)
+	fmt.Printf("%v\n", usersession)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
@@ -86,6 +89,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 func logout(w http.ResponseWriter, r *http.Request) {
 	sessions.UnauthenticateUserSession(w, r)
 	usersession := sessions.GetUserSession(w, r)
+
+	fmt.Printf("LOGOUT %v\n", usersession)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
