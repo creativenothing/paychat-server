@@ -56,6 +56,13 @@ func (c *Client) Broadcast(message []byte) {
 	c.hub.broadcast <- message
 }
 
+func (c *Client) MultiCast(message []byte) {
+	c.hub.multicast <- &multicastMessage{
+		c:       c,
+		message: message,
+	}
+}
+
 type ClientHandler func(c *Client, message []byte)
 
 // readPump pumps messages from the websocket connection to the hub.

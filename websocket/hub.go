@@ -9,6 +9,9 @@ type Hub struct {
 	// Inbound messages from the clients.
 	broadcast chan []byte
 
+	// Inbound messages from the clients.
+	multicast chan *multicastMessage
+
 	// Register requests from the clients.
 	register chan *Client
 
@@ -22,9 +25,15 @@ type Hub struct {
 	room *string
 }
 
+type multicastMessage struct {
+	c       *Client
+	message []byte
+}
+
 func newHub() *Hub {
 	return &Hub{
 		broadcast:  make(chan []byte),
+		multicast:  make(chan *multicastMessage),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
@@ -55,6 +64,17 @@ func (h *Hub) Run() {
 				default:
 					close(client.send)
 					delete(h.clients, client)
+				}
+			}
+		case message := <-h.multicast:
+			for client := range h.clients {
+				if message.c != client {
+					select {
+					case client.send <- message.message:
+					default:
+						close(client.send)
+						delete(h.clients, client)
+					}
 				}
 			}
 		}
