@@ -81,7 +81,10 @@ func (userSession *UserSession) CheckAuth() bool {
 // Return stored user session or nil
 func GetUserSessionByID(userID string) *UserSession {
 	if _, valid := userSessions_userID[userID]; !valid {
-		return nil
+		// Ensure session object exists
+		userSessions_userID[userID] = &UserSession{
+			UserID: userID,
+		}
 	}
 
 	return userSessions_userID[userID]
