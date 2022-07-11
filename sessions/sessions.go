@@ -75,7 +75,7 @@ func (us *UserSession) UserResponse() UserResponse {
 
 // If user session is authenitcated
 func (userSession *UserSession) CheckAuth() bool {
-	return userSession.UserID != ""
+	return userSession != nil && userSession.UserID != ""
 }
 
 // Return stored user session or nil
