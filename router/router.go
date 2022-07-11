@@ -166,8 +166,39 @@ func wsChatroom(w http.ResponseWriter, r *http.Request) {
 			c.Broadcast([]byte(send))
 			break
 
-		}
+		case "typing":
+			// Authenticate user
+			if !usersession.CheckAuth() {
+				return
+			}
 
+			// Support dynamic and simple typing indicators.
+			// dynamic typing means the incomplete message is shown to the other person while typing.
+			if dynamic, ok := messageJSON["dynamic"].(bool); ok {
+
+				// Ensure text is included for dynamic
+				if text, ok := messageJSON["text"].(string); dynamic && ok {
+					send, _ := json.Marshal(map[string]interface{}{
+						"type":    "typing",
+						"dynamic": dynamic,
+						"text":    text,
+					})
+
+					c.MultiCast([]byte(send))
+
+					// Ensure status is included with simple
+				} else if status, ok := messageJSON["status"].(bool); ok {
+					send, _ := json.Marshal(map[string]interface{}{
+						"type":    "typing",
+						"dynamic": dynamic,
+						"status":  status,
+					})
+
+					c.MultiCast([]byte(send))
+				}
+			}
+			break
+		}
 	}
 
 	websocket.ServeWsWithHandler(hub, w, r, handler)
