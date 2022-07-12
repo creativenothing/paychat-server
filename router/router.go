@@ -232,6 +232,48 @@ func wsWidget(w http.ResponseWriter, r *http.Request) {
 		client.Send([]byte(messageJSON))
 	}
 }
+
+func wsAdvisor(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("ADVISOR\n")
+
+	var usersession *sessions.UserSession = nil
+
+	var handler websocket.ClientHandler = func(c *websocket.Client, message []byte) {
+		messageJSON := map[string]interface{}{}
+		if err := json.Unmarshal(message, &messageJSON); err != nil {
+			return
+		}
+
+		if _, ok := messageJSON["type"].(string); !ok {
+			return
+		}
+		switch messageJSON["type"].(string) {
+		case "token":
+			fmt.Printf("ADVISOR TOKEN\n")
+			if _, ok := messageJSON["token"].(string); !ok {
+				return
+			}
+			token := messageJSON["token"].(string)
+
+			// Get advisor session for later requests. Update advisor status
+			usersession = sessions.GetUserSessionByJWT(token)
+
+			usersession.AdvisorSetStatus(sessions.AdvisorStatus.Available)
+
+			// Todo: Figure out what hubs to use
+			hub := websocket.GetHub("chat", usersession.UserID)
+			c.SetHub(hub)
+			fmt.Printf("ADVISOR AUTH %v\n", usersession)
+		}
+	}
+
+	client := websocket.ServeWsWithHandler(nil, w, r, handler)
+	client.SetCloseHandler(func(c *websocket.Client) {
+		// Set to offline on disconnect
+		usersession.AdvisorSetStatus(sessions.AdvisorStatus.Offline)
+	})
+}
+
 func SetupRouter() {
 	Router = mux.NewRouter()
 	Router.Use(cors)
@@ -243,10 +285,12 @@ func SetupRouter() {
 	Router.HandleFunc("/signup", controllers.RegisterUser).Methods("POST")
 	Router.HandleFunc("/user/{id}", controllers.GetUser).Methods("GET")
 	Router.HandleFunc("/user", controllers.GetAllUsers).Methods("GET")
-	Router.HandleFunc("/chat/ws", wsChatroom).Methods("GET")
-	Router.HandleFunc("/widget/ws", wsWidget).Methods("GET")
 	Router.HandleFunc("/auth", auth).Methods("GET")
 	Router.HandleFunc("/token", token).Methods("GET")
+
+	Router.HandleFunc("/chat/ws", wsChatroom).Methods("GET")
+	Router.HandleFunc("/widget/{id}", wsWidget).Methods("GET")
+	Router.HandleFunc("/advisor/chat", wsAdvisor).Methods("GET")
 
 	Router.HandleFunc("/", home)
 }
