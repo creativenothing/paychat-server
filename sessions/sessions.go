@@ -99,12 +99,10 @@ type Status uint64
 
 var AdvisorStatus = struct {
 	Offline   Status
-	Away      Status
 	Busy      Status
 	Available Status
 }{
 	Offline:   Status(0),
-	Away:      Status(1),
 	Busy:      Status(2),
 	Available: Status(3),
 }
@@ -113,8 +111,6 @@ func (s Status) String() string {
 	switch s {
 	case AdvisorStatus.Offline:
 		return "offline"
-	case AdvisorStatus.Away:
-		return "away"
 	case AdvisorStatus.Busy:
 		return "busy"
 	case AdvisorStatus.Available:
@@ -123,13 +119,13 @@ func (s Status) String() string {
 	return ""
 }
 
-func (us UserSession) AdvisorSetStatus(status Status) {
+func (us *UserSession) AdvisorSetStatus(status Status) {
 	us.Status = status
 
 	// Propagate status to connected websocket clients.
 	send, _ := json.Marshal(
 		map[string]interface{}{
-			"status": status,
+			"status": status.String(),
 		})
 	us.AdvisorGetWidgetHub().Broadcast([]byte(send))
 }

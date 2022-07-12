@@ -209,6 +209,7 @@ func wsWidget(w http.ResponseWriter, r *http.Request) {
 	id := vars["id"]
 
 	advisor := sessions.GetUserSessionByID(id)
+
 	if advisor == nil {
 		// Nil session means invalid user
 		w.WriteHeader(http.StatusForbidden)
@@ -225,13 +226,12 @@ func wsWidget(w http.ResponseWriter, r *http.Request) {
 	if client != nil {
 		// Update widget status immediately
 		messageJSON, _ := json.Marshal(map[string]interface{}{
-			"status": advisor.Status,
+			"status": advisor.Status.String(),
 		})
 
 		client.Send([]byte(messageJSON))
 	}
 }
-
 func SetupRouter() {
 	Router = mux.NewRouter()
 	Router.Use(cors)
