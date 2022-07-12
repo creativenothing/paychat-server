@@ -66,6 +66,16 @@ func (c *Client) MultiCast(message []byte) {
 	}
 }
 
+func (c *Client) SetHub(h *Hub) {
+	if c.hub != nil {
+		c.hub.unregister <- c
+	}
+	c.hub = h
+	if h != nil {
+		h.register <- c
+	}
+}
+
 func (c *Client) Send(message []byte) {
 	c.send <- message
 }
@@ -85,10 +95,12 @@ type CloseHandler func(c *Client)
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.hub.unregister <- c
+		if c.hub != nil {
+			c.hub.unregister <- c
+		}
 		c.conn.Close()
 
-		// Call close function
+		// Call close function when connection closed
 		c.closeHandler(c)
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -178,7 +190,9 @@ func ServeWsWithHandler(hub *Hub, w http.ResponseWriter, r *http.Request, h Clie
 		handler:      h,
 		closeHandler: noCloseHandler,
 	}
-	client.hub.register <- client
+	if client.hub != nil {
+		client.hub.register <- client
+	}
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
