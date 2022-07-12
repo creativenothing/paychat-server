@@ -63,6 +63,10 @@ func (c *Client) MultiCast(message []byte) {
 	}
 }
 
+func (c *Client) Send(message []byte) {
+	c.send <- message
+}
+
 type ClientHandler func(c *Client, message []byte)
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -145,11 +149,11 @@ var forwardClientHandler ClientHandler = func(c *Client, message []byte) {
 }
 
 // serveWs handles websocket requests from the peer.
-func ServeWsWithHandler(hub *Hub, w http.ResponseWriter, r *http.Request, h ClientHandler) {
+func ServeWsWithHandler(hub *Hub, w http.ResponseWriter, r *http.Request, h ClientHandler) *Client {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
-		return
+		return nil
 	}
 	client := &Client{
 		hub:     hub,
@@ -163,6 +167,8 @@ func ServeWsWithHandler(hub *Hub, w http.ResponseWriter, r *http.Request, h Clie
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
+
+	return client
 }
 
 // Default functionality preserved

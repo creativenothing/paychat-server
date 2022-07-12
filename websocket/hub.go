@@ -40,6 +40,10 @@ func newHub() *Hub {
 	}
 }
 
+func (h *Hub) Broadcast(message []byte) {
+	h.broadcast <- message
+}
+
 var Instance *Hub = newHub()
 
 func (h *Hub) Run() {
