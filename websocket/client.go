@@ -46,6 +46,9 @@ type Client struct {
 
 	// handler function
 	handler ClientHandler
+
+	// on websocket close
+	closeHandler CloseHandler
 }
 
 func (c *Client) Hub() *Hub {
@@ -67,7 +70,13 @@ func (c *Client) Send(message []byte) {
 	c.send <- message
 }
 
+func (c *Client) SetCloseHandler(ch CloseHandler) {
+	c.closeHandler = ch
+}
+
 type ClientHandler func(c *Client, message []byte)
+
+type CloseHandler func(c *Client)
 
 // readPump pumps messages from the websocket connection to the hub.
 //
@@ -78,6 +87,9 @@ func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
 		c.conn.Close()
+
+		// Call close function
+		c.closeHandler(c)
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -142,6 +154,10 @@ func (c *Client) writePump() {
 	}
 }
 
+func noCloseHandler(c *Client) {
+	return
+}
+
 // Default client behavior
 var forwardClientHandler ClientHandler = func(c *Client, message []byte) {
 	message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
@@ -156,10 +172,11 @@ func ServeWsWithHandler(hub *Hub, w http.ResponseWriter, r *http.Request, h Clie
 		return nil
 	}
 	client := &Client{
-		hub:     hub,
-		conn:    conn,
-		send:    make(chan []byte, 256),
-		handler: h,
+		hub:          hub,
+		conn:         conn,
+		send:         make(chan []byte, 256),
+		handler:      h,
+		closeHandler: noCloseHandler,
 	}
 	client.hub.register <- client
 
