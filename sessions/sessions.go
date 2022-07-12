@@ -1,11 +1,13 @@
 package sessions
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 
 	db "github.com/creativenothing/paychat-server/database"
 	"github.com/creativenothing/paychat-server/models"
+	"github.com/creativenothing/paychat-server/websocket"
 
 	"net/http"
 
@@ -124,11 +126,16 @@ func (s Status) String() string {
 func (us UserSession) AdvisorSetStatus(status Status) {
 	us.Status = status
 
-	// I cannot access websocket logic from this file.
-	/*us.WidgetHub.broadcast <- []byte(json.Marshall(
-	map[string]interface{}{
-		"status": status,
-	}))*/
+	// Propagate status to connected websocket clients.
+	send, _ := json.Marshal(
+		map[string]interface{}{
+			"status": status,
+		})
+	us.AdvisorGetWidgetHub().Broadcast([]byte(send))
+}
+
+func (us *UserSession) AdvisorGetWidgetHub() *websocket.Hub {
+	return websocket.GetHub("widget", us.UserID)
 }
 
 // * * * * * * * *

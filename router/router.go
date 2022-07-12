@@ -204,6 +204,34 @@ func wsChatroom(w http.ResponseWriter, r *http.Request) {
 	websocket.ServeWsWithHandler(hub, w, r, handler)
 }
 
+func wsWidget(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	advisor := sessions.GetUserSessionByID(id)
+	if advisor == nil {
+		// Nil session means invalid user
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	hub := advisor.AdvisorGetWidgetHub()
+	var handler websocket.ClientHandler = func(c *websocket.Client, message []byte) {
+		// Do not respond to messages
+		return
+	}
+
+	client := websocket.ServeWsWithHandler(hub, w, r, handler)
+	if client != nil {
+		// Update widget status immediately
+		messageJSON, _ := json.Marshal(map[string]interface{}{
+			"status": advisor.Status,
+		})
+
+		client.Send([]byte(messageJSON))
+	}
+}
+
 func SetupRouter() {
 	Router = mux.NewRouter()
 	Router.Use(cors)
@@ -216,6 +244,7 @@ func SetupRouter() {
 	Router.HandleFunc("/user/{id}", controllers.GetUser).Methods("GET")
 	Router.HandleFunc("/user", controllers.GetAllUsers).Methods("GET")
 	Router.HandleFunc("/chat/ws", wsChatroom).Methods("GET")
+	Router.HandleFunc("/widget/ws", wsWidget).Methods("GET")
 	Router.HandleFunc("/auth", auth).Methods("GET")
 	Router.HandleFunc("/token", token).Methods("GET")
 
